@@ -4,6 +4,8 @@ A desktop ADS-B radar for the Waveshare ESP32-P4-WIFI6-Touch-LCD-7B, a 7" 1024×
 It shows the aircraft flying around a point of your choice, live, using the free [adsb.lol](https://adsb.lol) API.
 No receiver or antenna needed: only Wi-Fi.
 
+![Radar screen: aircraft around Paris within 25 nm](screenshots/radar.png)
+
 ## Features
 
 - Round radar scope with range rings, north up, 25 to 250 nm range
