@@ -38,6 +38,11 @@ static void on_scan(lv_event_t *e)
     lv_label_set_text(s_error, n ? "" : "No Wi-Fi network found");
 }
 
+static void on_show_password(lv_event_t *e)
+{
+    lv_textarea_set_password_mode(s_pass, !lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED));
+}
+
 static void on_lookup(lv_event_t *e)
 {
     int i = mapdata_find_airport(s_map, lv_textarea_get_text(s_icao));
@@ -122,8 +127,12 @@ void settings_ui_show(const mapdata_t *map, const settings_t *current,
     lv_obj_set_width(s_ssid, 360);
     lv_dropdown_set_options(s_ssid, current->ssid);
     button("Scan", 490, 20, 110, on_scan);
-    s_pass = field("Password", 620, 20, 384, LV_KEYBOARD_MODE_TEXT_LOWER);
+    s_pass = field("Password", 620, 20, 290, LV_KEYBOARD_MODE_TEXT_LOWER);
     lv_textarea_set_password_mode(s_pass, true);
+    lv_obj_t *show = lv_checkbox_create(s_screen);
+    lv_checkbox_set_text(show, "Show");
+    lv_obj_set_pos(show, 924, 32);
+    lv_obj_add_event_cb(show, on_show_password, LV_EVENT_VALUE_CHANGED, NULL);
     lv_textarea_set_max_length(s_pass, sizeof(current->pass) - 1);
     lv_textarea_set_text(s_pass, current->pass);
 

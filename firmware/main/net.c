@@ -23,6 +23,8 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         s_connected = false;
+        const wifi_event_sta_disconnected_t *d = data;
+        ESP_LOGW(TAG, "disconnected from \"%.*s\", reason %d", d->ssid_len, (const char *)d->ssid, d->reason);
         if (s_wanted) {
             esp_wifi_connect();
         }
@@ -59,6 +61,7 @@ void net_connect(const char *ssid, const char *pass)
     net_disconnect();
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
     s_wanted = true;
+    ESP_LOGI(TAG, "connecting to \"%s\" (password: %d characters)", ssid, (int)strlen(pass));
     esp_wifi_connect();
 }
 

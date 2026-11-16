@@ -120,12 +120,14 @@ void app_main(void)
     ESP_ERROR_CHECK(mapdata_open(&s_map, map_start, map_end - map_start) ? ESP_OK : ESP_FAIL);
     ESP_LOGI(TAG, "TS_OK map lines=%" PRIu32 " airports=%" PRIu32, s_map.n_lines, s_map.n_airports);
 
-    // Orientation and touch mapping as in the Waveshare LVGL examples for this panel.
+    // Display rotated 180 degrees as in the Waveshare LVGL examples. Their touch
+    // mirroring (mirror_x/y = 1) is left out: on this board it flips the touch
+    // point to the opposite corner. Adjust touch_flags if a panel batch differs.
     bsp_display_cfg_t cfg = {
         .lv_adapter_cfg = ESP_LV_ADAPTER_DEFAULT_CONFIG(),
         .rotation = ESP_LV_ADAPTER_ROTATE_180,
         .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_TRIPLE_PARTIAL,
-        .touch_flags = {.swap_xy = 0, .mirror_x = 1, .mirror_y = 1},
+        .touch_flags = {.swap_xy = 0, .mirror_x = 0, .mirror_y = 0},
     };
     lv_display_t *display = bsp_display_start_with_config(&cfg);
     ESP_ERROR_CHECK(display != NULL ? ESP_OK : ESP_FAIL);
