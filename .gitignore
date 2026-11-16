@@ -15,3 +15,6 @@ dependencies.lock
 # Tools
 tools/.cache/
 __pycache__/
+
+# Simulator
+sim/out/
