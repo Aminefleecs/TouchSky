@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 
 // A 250 nm query over a busy area is a few hundred kB of JSON.
@@ -18,6 +19,7 @@
 static const char *TAG = "net";
 static bool s_connected, s_wanted;
 static char *s_body;
+static int s_body_len;
 
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
@@ -30,7 +32,9 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         }
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         s_connected = true;
-        ESP_LOGI(TAG, "TS_OK wifi");
+        wifi_ap_record_t ap = {0};
+        esp_wifi_sta_get_ap_info(&ap);
+        ESP_LOGI(TAG, "TS_OK wifi rssi=%d channel=%d", ap.rssi, ap.primary);
     }
 }
 
@@ -100,36 +104,52 @@ int net_scan(char ssids[][NET_SSID_LEN], int max)
     return n;
 }
 
+// Appends each chunk of the response body to s_body.
+static esp_err_t on_http(esp_http_client_event_t *event)
+{
+    if (event->event_id == HTTP_EVENT_ON_CONNECTED || event->event_id == HTTP_EVENT_ON_HEADER) {
+        s_body_len = 0; // a new response starts
+    } else if (event->event_id == HTTP_EVENT_ON_DATA) {
+        if (s_body_len + event->data_len >= BODY_MAX) {
+            return ESP_FAIL; // would be truncated JSON: give up on this response
+        }
+        memcpy(s_body + s_body_len, event->data, event->data_len);
+        s_body_len += event->data_len;
+    }
+    return ESP_OK;
+}
+
 const char *net_get(const char *url)
 {
-    esp_http_client_config_t cfg = {
-        .url = url,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-        .timeout_ms = 10000,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    // One keep-alive connection for all requests: connecting and the TLS
+    // handshake take seconds through the coprocessor link, far too long to
+    // repeat on every poll. Dropped and reopened after any failure.
+    static esp_http_client_handle_t client;
     if (!client) {
+        esp_http_client_config_t cfg = {
+            .url = url,
+            .crt_bundle_attach = esp_crt_bundle_attach,
+            .timeout_ms = 20000,
+            .keep_alive_enable = true,
+            .event_handler = on_http,
+        };
+        client = esp_http_client_init(&cfg);
+        if (!client) {
+            return NULL;
+        }
+    }
+    esp_http_client_set_url(client, url);
+    int64_t start = esp_timer_get_time();
+    esp_err_t err = esp_http_client_perform(client);
+    int status = esp_http_client_get_status_code(client);
+    ESP_LOGD(TAG, "GET took %d ms", (int)((esp_timer_get_time() - start) / 1000));
+    if (err != ESP_OK || status != 200) {
+        ESP_LOGW(TAG, "GET failed after %d ms: %s, status %d",
+                 (int)((esp_timer_get_time() - start) / 1000), esp_err_to_name(err), status);
+        esp_http_client_cleanup(client);
+        client = NULL;
         return NULL;
     }
-    const char *result = NULL;
-    if (esp_http_client_open(client, 0) == ESP_OK && esp_http_client_fetch_headers(client) >= 0) {
-        int total = 0, n;
-        while (total < BODY_MAX - 1 &&
-               (n = esp_http_client_read(client, s_body + total, BODY_MAX - 1 - total)) > 0) {
-            total += n;
-        }
-        s_body[total] = '\0';
-        // A body that filled the buffer was cut short: treat it as an error
-        // rather than parse truncated JSON.
-        if (esp_http_client_get_status_code(client) == 200 && total < BODY_MAX - 1 &&
-            esp_http_client_is_complete_data_received(client)) {
-            result = s_body;
-        } else {
-            ESP_LOGW(TAG, "GET failed: status %d, %d bytes", esp_http_client_get_status_code(client), total);
-        }
-    } else {
-        ESP_LOGW(TAG, "GET failed: no connection");
-    }
-    esp_http_client_cleanup(client);
-    return result;
+    s_body[s_body_len] = '\0';
+    return s_body;
 }
