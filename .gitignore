@@ -1,0 +1,17 @@
+# Vendor docs (PDF, CAD): kept locally, see README for sources
+docs/
+
+.DS_Store
+.remember/
+.vscode/
+
+# ESP-IDF
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# Tools
+tools/.cache/
+__pycache__/
