@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
 import build_map as bm  # noqa: E402
 
 BOX = (0.0, 0.0, 10.0, 10.0)  # square, so lat/lon order of the bbox does not matter
+ABOX = (40.0, -5.0, 50.0, 10.0)  # asymmetric: (lat_min, lon_min, lat_max, lon_max)
 
 
 class ClipTest(unittest.TestCase):
@@ -35,6 +36,27 @@ class ClipTest(unittest.TestCase):
 
     def test_just_outside_edge(self):
         self.assertEqual(bm.clip([(10.0001, 5), (5, 10.0001), (-0.0001, 5)], BOX), [])
+
+    def test_asymmetric_bbox_lat_lon_order(self):
+        pts = [(45.0, 0.0), (45.0, -4.0),  # inside
+               (0.0, 45.0), (-4.0, 45.0),  # lat/lon swapped: outside
+               (45.0, 1.0), (46.0, 2.0),  # inside
+               (45.0, 20.0), (46.0, 20.0),  # outside by lon only
+               (47.0, 3.0), (48.0, 4.0),  # inside
+               (55.0, 0.0), (56.0, 1.0),  # outside by lat only
+               (44.0, 5.0), (43.0, 6.0),  # inside
+               (45.0, -6.0), (46.0, -7.0)]  # outside by negative lon
+        runs = [list(r) for r in bm.clip(pts, ABOX)]
+        self.assertEqual(runs, [pts[0:2], pts[4:6], pts[8:10], pts[12:14]])
+
+    def test_asymmetric_bbox_edges_inside(self):
+        pts = [(40.0, -5.0), (50.0, 10.0), (40.0, 10.0), (50.0, -5.0)]
+        self.assertEqual([list(r) for r in bm.clip(pts, ABOX)], [pts])
+
+    def test_europe_constant(self):
+        paris, ny, dubai = (48.85, 2.35), (40.64, -73.78), (25.25, 55.36)
+        pts = [paris, (48.9, 2.4), ny, (40.7, -73.8), dubai, (25.3, 55.4)]
+        self.assertEqual([list(r) for r in bm.clip(pts, bm.EUROPE)], [pts[0:2]])
 
 
 def seg_dist(p, a, b):
@@ -149,6 +171,31 @@ class AirportsTest(unittest.TestCase):
                 apt(ident='BBBB', icao_code='BBBB', longitude_deg='abc'),
                 apt(ident='CCCC', icao_code='CCCC')]
         self.assertEqual([g[0] for g in bm.airports(rows, BOX)], ['CCCC'])
+
+    def test_asymmetric_bbox(self):
+        rows = [apt(ident='INSD', icao_code='INSD', latitude_deg='45', longitude_deg='0'),
+                apt(ident='NEGL', icao_code='NEGL', latitude_deg='45', longitude_deg='-4'),
+                apt(ident='SWAP', icao_code='SWAP', latitude_deg='0', longitude_deg='45'),
+                apt(ident='OLON', icao_code='OLON', latitude_deg='45', longitude_deg='20'),
+                apt(ident='OLAT', icao_code='OLAT', latitude_deg='55', longitude_deg='0'),
+                apt(ident='NLON', icao_code='NLON', latitude_deg='45', longitude_deg='-6'),
+                apt(ident='EDGE', icao_code='EDGE', latitude_deg='40', longitude_deg='10')]
+        got = bm.airports(rows, ABOX)
+        self.assertEqual([g[0] for g in got], ['INSD', 'NEGL', 'EDGE'])
+
+    def test_asymmetric_tuple_order(self):
+        got = bm.airports([apt(latitude_deg='45.5', longitude_deg='-3.5')], ABOX)
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0][0], 'LFPG')
+        self.assertAlmostEqual(got[0][1], 45.5)
+        self.assertAlmostEqual(got[0][2], -3.5)
+        self.assertEqual(got[0][3], bm.LARGE)
+
+    def test_europe_constant(self):
+        rows = [apt(ident='LFPG', icao_code='LFPG', latitude_deg='48.85', longitude_deg='2.35'),
+                apt(ident='KJFK', icao_code='KJFK', latitude_deg='40.64', longitude_deg='-73.78'),
+                apt(ident='OMDB', icao_code='OMDB', latitude_deg='25.25', longitude_deg='55.36')]
+        self.assertEqual([g[0] for g in bm.airports(rows, bm.EUROPE)], ['LFPG'])
 
 
 def rwy(**kw):

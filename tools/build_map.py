@@ -37,6 +37,7 @@ SOURCES = {
 def clip(points, bbox):
     """Splits a polyline into the runs of consecutive points inside bbox.
 
+    bbox is (lat_min, lon_min, lat_max, lon_max) in degrees, like EUROPE.
     Returns a list of runs (lists of points). Points on the bbox edge are
     inside. Runs of fewer than 2 points are dropped.
     """
@@ -95,6 +96,7 @@ def airports(rows, bbox):
     Keeps rows of type "medium_airport" or "large_airport" inside bbox whose
     code is exactly 4 uppercase letters/digits. The code is "icao_code" when
     present and non-empty, else "ident".
+    bbox is (lat_min, lon_min, lat_max, lon_max) in degrees, like EUROPE.
     Returns a list of (icao, lat, lon, size) with size MEDIUM or LARGE.
     """
     lat_min, lon_min, lat_max, lon_max = bbox
