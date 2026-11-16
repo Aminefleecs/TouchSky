@@ -4,7 +4,7 @@ project(touchsky_host_tests C)
 
 set(IDF "$ENV{IDF_PATH}")
 if(NOT IDF)
-    set(IDF "$ENV{HOME}/Developer/SDK/esp-idf")
+    message(FATAL_ERROR "IDF_PATH is not set: load the ESP-IDF environment (export.sh) first")
 endif()
 set(FW "${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/main")
 
