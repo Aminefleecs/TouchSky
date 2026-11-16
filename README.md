@@ -4,6 +4,8 @@ A desktop ADS-B radar for the Waveshare ESP32-P4-WIFI6-Touch-LCD-7B, a 7" 1024×
 It shows the aircraft flying around a point of your choice, live, using the free [adsb.lol](https://adsb.lol) API.
 No receiver or antenna needed: only Wi-Fi.
 
+![Radar screen: aircraft around Paris within 25 nm](screenshots/radar.png)
+
 ## Features
 
 - Round radar scope with range rings, north up, 25 to 250 nm range
@@ -63,6 +65,7 @@ The **Settings** button on the radar screen brings this screen back.
 | `firmware/` | ESP-IDF project (LVGL 9, Waveshare board support package) |
 | `tools/` | `build_map.py`, which generates the embedded map |
 | `tests/` | Host unit tests, tool tests and an on-device check |
+| `sim/` | Host simulator that renders the screens to image files |
 
 ## Regenerating the map
 
@@ -83,6 +86,20 @@ tests/run.sh device <port> map display wifi adsb   # also waits for Wi-Fi and a 
 
 The firmware logic (projection, API parsing, map reader, settings validation) is plain C without any ESP-IDF dependency,
 which is what lets the first command run without a board.
+
+## Simulator
+
+`sim/` builds the firmware's real screen code for your computer and saves screenshots, without a board.
+It needs CMake, Ninja and the ESP-IDF environment, and downloads LVGL on the first run:
+
+```sh
+sim/run.sh                              # Paris, 25 nm, with a captured API answer
+sim/run.sh 51.47 -0.45 50 traffic.json  # your own centre, range and adsb.lol answer
+```
+
+Screenshots of the radar and settings screens land in `sim/out/`.
+To use live traffic, save an API answer first:
+`curl -o traffic.json https://api.adsb.lol/v2/point/51.47/-0.45/50`.
 
 ## Data sources and credits
 
